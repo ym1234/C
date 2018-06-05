@@ -41,67 +41,30 @@ int main(int argc, char **argv) {
 }
 
 int switch_key(int character) {
-	for(int i = 0; i < 0xF; i++) {
-		pc.keyboard[i] = 0;
-	}
-
-	if(character == -1) return -1;
-
+	int key = -1;
 	switch(character) {
-		case 'i':
-			exit(0);
-		case '1':
-			pc.keyboard[1] = 1;
-			return 1;
-		case '2':
-			pc.keyboard[2] = 1;
-			return 2;
-		case '3':
-			pc.keyboard[3] = 1;
-			return 3;
-		case '4':
-			pc.keyboard[0xC] = 1;
-			return 0xC;
-		case '\'':
-			pc.keyboard[4] = 1;
-			return 4;
-		case ',':
-			pc.keyboard[5] = 1;
-			return 5;
-		case '.':
-			pc.keyboard[6] = 1;
-			return 6;
-		case 'p':
-			pc.keyboard[0xD] = 1;
-			return 0xD;
-		case 'a':
-			pc.keyboard[7] = 1;
-			return 7;
-		case 'o':
-			pc.keyboard[8] = 1;
-			return 8;
-		case 'e':
-			pc.keyboard[9] = 1;
-			return 9;
-		case 'u':
-			pc.keyboard[0xE] = 1;
-			return 0xE;
-		case ';':
-			pc.keyboard[0xA] = 1;
-			return 0xA;
-		case 'q':
-			pc.keyboard[0] = 1;
-			return 0;
-		case 'j':
-			pc.keyboard[0xB] = 1;
-			return 0xB;
-		case 'k':
-			pc.keyboard[0xF] = 1;
-			return 0xF;
-		default:
-			break;
+		case 'i': exit(0);
+		case '1':  key = 1;   break;
+		case '2':  key = 2;   break;
+		case '3':  key = 3;   break;
+		case '4':  key = 0xC; break;
+		case '\'': key = 4;   break;
+		case ',':  key = 5;   break;
+		case '.':  key = 6;   break;
+		case 'p':  key = 0xD; break;
+		case 'o':  key = 8;   break;
+		case 'e':  key = 9;   break;
+		case ';':  key = 0xA; break;
+		case 'q':  key = 0;   break;
+		case 'j':  key = 0xB; break;
+		case 'k':  key = 0xF; break;
 	}
-	return -1;
+
+	if(key != -1) {
+		pc.keyboard[key] = 1;
+		/* printf("%c", character); */
+	}
+	return key;
 }
 
 void fill_sprites(uint8_t *memory) {
@@ -239,11 +202,11 @@ void tick(uint8_t first, uint8_t second) {
 			break;
 		case 0xE:
 			if(second == 0x9E) {
-				if(pc.keyboard[pc.registers[x]] == 1) {
+				if(pc.keyboard[pc.registers[x]]) {
 					pc.program_counter += 2;
 				}
 			} else if(second == 0xA1) {
-				if(pc.keyboard[pc.registers[x]] == 0) {
+				if(!pc.keyboard[pc.registers[x]]) {
 					pc.program_counter += 2;
 				}
 			} else {
@@ -257,11 +220,9 @@ void tick(uint8_t first, uint8_t second) {
 						case 0x7:
 							pc.registers[x] = pc.delay_timer;
 							break;
-						case 0xA: {
-							int character_num = -1;
-							while((character_num = switch_key(getchar())) == -1);
-							pc.registers[x] = character_num;
-						} break;
+						case 0xA:
+							while((pc.registers[x]  = switch_key(getchar())) == -1);
+							break;
 						default:
 							unknown_instruction(first, second);
 							break;
@@ -319,6 +280,10 @@ void tick(uint8_t first, uint8_t second) {
 		default:
 			unknown_instruction(first, second);
 			break;
+	}
+
+	for(int i = 0; i < 0x10; i++) {
+		pc.keyboard[i] = 0;
 	}
 }
 
