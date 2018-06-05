@@ -1,0 +1,29 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	0.0.0	/6f7654b9/
+I	Main.h	/^	uint16_t I;$/;"	m	struct:everything	typeref:typename:uint16_t
+clear_display	Main.c	/^void clear_display() {$/;"	f	typeref:typename:void
+delay_timer	Main.h	/^	uint8_t delay_timer;$/;"	m	struct:everything	typeref:typename:uint8_t
+draw	Main.c	/^void draw() {$/;"	f	typeref:typename:void
+drawSprite	Main.c	/^void drawSprite(int x, int y, int length) {$/;"	f	typeref:typename:void
+everything	Main.h	/^struct everything {$/;"	s
+fill_sprites	Main.c	/^void fill_sprites(uint8_t *memory) {$/;"	f	typeref:typename:void
+init_termios	term.c	/^void init_termios() {$/;"	f	typeref:typename:void
+main	Main.c	/^int main(int argc, char **argv) {$/;"	f	typeref:typename:int
+memory	Main.h	/^	uint8_t memory[0xFFF];$/;"	m	struct:everything	typeref:typename:uint8_t[0xFFF]
+not_implemented	Main.c	/^void not_implemented(int first, int second) {$/;"	f	typeref:typename:void
+old_termios	term.c	/^static termios old_termios;$/;"	v	typeref:typename:termios	file:
+pc	Main.h	/^} pc = { {0}, {0}, {{0}}, {0}, 0, 0, 0, 60, 60 };$/;"	v	typeref:struct:everything
+program_counter	Main.h	/^	uint16_t program_counter;$/;"	m	struct:everything	typeref:typename:uint16_t
+registers	Main.h	/^	uint8_t registers[0xF];$/;"	m	struct:everything	typeref:typename:uint8_t[0xF]
+screen	Main.h	/^	uint8_t screen[32][8];$/;"	m	struct:everything	typeref:typename:uint8_t[32][8]
+sound_timer	Main.h	/^	uint8_t sound_timer;$/;"	m	struct:everything	typeref:typename:uint8_t
+stack	Main.h	/^	uint16_t stack[0xF];$/;"	m	struct:everything	typeref:typename:uint16_t[0xF]
+stack_pointer	Main.h	/^	uint8_t stack_pointer;$/;"	m	struct:everything	typeref:typename:uint8_t
+termios	term.c	/^typedef struct termios termios;$/;"	t	typeref:struct:termios	file:
+tick	Main.c	/^void tick(uint8_t first, uint8_t second) {$/;"	f	typeref:typename:void
+unknown_instruction	Main.c	/^void unknown_instruction(int first, int second) {$/;"	f	typeref:typename:void
