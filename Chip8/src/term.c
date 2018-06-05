@@ -20,6 +20,7 @@ int init_termios(void) {
 	tcgetattr(STDOUT_FILENO, &old_termios);
 	memcpy(&new_termios, &old_termios, sizeof(termios));
 
+	// Raw mode
 	cfmakeraw(&new_termios);
 
 	// Make read() async
@@ -27,15 +28,8 @@ int init_termios(void) {
 	new_termios.c_cc[VTIME] = 0;
 
 	tcsetattr(STDOUT_FILENO, TCSANOW, &new_termios);
+	atexit(reset_termios);
 	return 0;
-}
-
-char getch() {
-		char character;
-		if(read(0, &character, sizeof(char)) <= 0) {
-			return 0;
-		}
-		return character;
 }
 
 void reset_termios(void) {
@@ -43,7 +37,7 @@ void reset_termios(void) {
 }
 
 // Resources:
-/* // 		https://github.com/mauke/unibilium/blob/master/secret/terminfo.pod */
+// 		https://github.com/mauke/unibilium/blob/master/secret/terminfo.pod
 /* int read_terminfo(terminfo *info) { */
 /* 	FILE *terminfo_file = fopen(get_terminfo(), "rb"); */
 /* 	int file_size = get_file_size(terminfo_file); */

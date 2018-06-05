@@ -1,7 +1,12 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include "term.h"
 #include "Main.h"
+
+// Passing the processor instance is a pain in the ass but,
+// TODO(ym): globals are bad.
+static Processor pc = { {0}, {0}, {0}, {{0}}, 0, 0, 0, {0}, 0, 0 };
 
 int main(int argc, char **argv) {
 
@@ -25,20 +30,78 @@ int main(int argc, char **argv) {
 	fread(pc.memory + 0x200, 1, sizeof(pc.memory), bin);
 	fclose(bin);
 
-	atexit(reset_termios);
 	fill_sprites(pc.memory);
 
 	for(pc.program_counter = 0x200; pc.program_counter < 0xFFF; pc.program_counter += 2){
-		char keyPressed = getch();
-		if(keyPressed == 'q') {
-			exit(0);
-		}
 		tick(pc.memory[pc.program_counter], pc.memory[pc.program_counter + 1]);
 		pc.delay_timer -= pc.delay_timer ? 1 : 0;
 		pc.sound_timer -= pc.sound_timer ? 1 : 0;
-		usleep(1000);
+		usleep(2000);
+	}
+}
+
+int switch_key(int character) {
+	for(int i = 0; i < 0xF; i++) {
+		pc.keyboard[i] = 0;
 	}
 
+	if(character == -1) return -1;
+
+	switch(character) {
+		case 'i':
+			exit(0);
+		case '1':
+			pc.keyboard[1] = 1;
+			return 1;
+		case '2':
+			pc.keyboard[2] = 1;
+			return 2;
+		case '3':
+			pc.keyboard[3] = 1;
+			return 3;
+		case '4':
+			pc.keyboard[0xC] = 1;
+			return 0xC;
+		case '\'':
+			pc.keyboard[4] = 1;
+			return 4;
+		case ',':
+			pc.keyboard[5] = 1;
+			return 5;
+		case '.':
+			pc.keyboard[6] = 1;
+			return 6;
+		case 'p':
+			pc.keyboard[0xD] = 1;
+			return 0xD;
+		case 'a':
+			pc.keyboard[7] = 1;
+			return 7;
+		case 'o':
+			pc.keyboard[8] = 1;
+			return 8;
+		case 'e':
+			pc.keyboard[9] = 1;
+			return 9;
+		case 'u':
+			pc.keyboard[0xE] = 1;
+			return 0xE;
+		case ';':
+			pc.keyboard[0xA] = 1;
+			return 0xA;
+		case 'q':
+			pc.keyboard[0] = 1;
+			return 0;
+		case 'j':
+			pc.keyboard[0xB] = 1;
+			return 0xB;
+		case 'k':
+			pc.keyboard[0xF] = 1;
+			return 0xF;
+		default:
+			break;
+	}
+	return -1;
 }
 
 void fill_sprites(uint8_t *memory) {
@@ -63,7 +126,7 @@ void fill_sprites(uint8_t *memory) {
 
 	for(int i = 0; i < 5; i++) {
 		for(int j = 0; j < 5; j++) {
-			*(memory + (i * 5 + j)) = sprites[i][j];
+			memory[i * 5 + j] = sprites[i][j];
 		}
 	}
 }
@@ -74,6 +137,8 @@ void unknown_instruction(int first, int second) {
 }
 
 void tick(uint8_t first, uint8_t second) {
+
+	switch_key(getchar());
 
 	uint8_t x = first & 0xF;
 	uint8_t y = (second & 0xF0) >> 4;
@@ -130,7 +195,7 @@ void tick(uint8_t first, uint8_t second) {
 					pc.registers[x] ^= pc.registers[y];
 					break;
 				case 0x4: {
-					uint32_t result = pc.registers[x] + pc.registers[y];
+					uint16_t result = pc.registers[x] + pc.registers[y];
 					pc.registers[0xF] = result > 0xFF;
 					pc.registers[x] = (result & 0xFF);
 				} break;
@@ -170,10 +235,20 @@ void tick(uint8_t first, uint8_t second) {
 			pc.registers[x] = ((uint8_t) (rand() % 0xFF)) & second;
 			break;
 		case 0xD:
-			drawSprite(pc.registers[x], pc.registers[y], second & 0xF);
+			draw_sprite(pc.registers[x], pc.registers[y], second & 0xF);
 			break;
 		case 0xE:
-			not_implemented(first, second);
+			if(second == 0x9E) {
+				if(pc.keyboard[pc.registers[x]] == 1) {
+					pc.program_counter += 2;
+				}
+			} else if(second == 0xA1) {
+				if(pc.keyboard[pc.registers[x]] == 0) {
+					pc.program_counter += 2;
+				}
+			} else {
+				unknown_instruction(first, second);
+			}
 			break;
 		case 0xF:
 			switch((second & 0xF0) >> 4) {
@@ -182,8 +257,13 @@ void tick(uint8_t first, uint8_t second) {
 						case 0x7:
 							pc.registers[x] = pc.delay_timer;
 							break;
-						case 0xA:
-							not_implemented(first, second);
+						case 0xA: {
+							int character_num = -1;
+							while((character_num = switch_key(getchar())) == -1);
+							pc.registers[x] = character_num;
+						} break;
+						default:
+							unknown_instruction(first, second);
 							break;
 					}
 					break;
@@ -262,15 +342,16 @@ void draw(void) {
 	}
 }
 
-void drawSprite(int x, int y, int length) {
+void draw_sprite(int x, int y, int length) {
 	pc.registers[0xF] = 0;
 	for(int i = 0; i < length; i++) {
 		for(int k = 0; k < 8; k++) {
 			uint8_t pixel = pc.screen[(y + i) % SCREEN_HEIGHT][(x + k) % SCREEN_WIDTH];
-			pc.screen[y + i][x + k] ^= (pc.memory[pc.I + i] & (0x80 >> k));
-			if(pixel == 1 && (pc.screen[y + i][x + k] == 0)) {
+			uint8_t new_pixel = (pixel ^ (pc.memory[pc.I + i] & (0x80 >> k)));
+			if(pixel == 1 && new_pixel == 0) {
 				pc.registers[0xF] |= 1;
 			}
+			pc.screen[(y + i) % SCREEN_HEIGHT][(x + k) % SCREEN_WIDTH] = new_pixel;
 		}
 	}
 	draw();
