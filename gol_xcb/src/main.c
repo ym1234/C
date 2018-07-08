@@ -7,18 +7,17 @@
 
 #include "main.h"
 
-
+// TODO(ym): xcb wrapper for keyboard/mouse input.
 int main() {
-
 	xcb_connection_t *connection = xcb_connect(NULL, NULL);
+
 	Drawable window = create_window(connection);
-
-	Game game = create_game(300, 300);
-
-	Drawable back_buffer = { game.board.length * 5, game.board.width * 5, xcb_generate_id(connection) };
+	Drawable back_buffer = { window.height, window.width, xcb_generate_id(connection) };
 	xcb_create_pixmap(connection,xcb_setup_roots_iterator(xcb_get_setup(connection)).data->root_depth, back_buffer.id, window.id, back_buffer.width, back_buffer.height);
 
-	// i hate having to do this, why can't i just use the background color of a graphics context for clearing?
+	Game game = create_game(400, 300);
+
+	// I hate having to do this, why can't I just use the background color of a graphics context for clearing?
 	xcb_gcontext_t white_gc = xcb_generate_id(connection);
 	xcb_create_gc(connection, white_gc, window.id, XCB_GC_FOREGROUND, &(xcb_setup_roots_iterator(xcb_get_setup(connection)).data->white_pixel));
 
@@ -26,11 +25,12 @@ int main() {
 	xcb_create_gc(connection, black_gc, window.id, XCB_GC_FOREGROUND, &(xcb_setup_roots_iterator(xcb_get_setup(connection)).data->black_pixel));
 
 	int done = 1;
+	// TODO(ym): remove xcb_connection_has_error, commmunicate with the window manager (WM_DELETE_WINDOW) instead (you probably should read some of EHWM and ICWWM while you're at it).
 	while(done && xcb_connection_has_error(connection) == 0) {
 		xcb_generic_event_t *e;
 		while((e = xcb_poll_for_event(connection))) {
 			switch((e->response_type & ~0x80)) {
-				// Should probably handle this in a configure event, but last time a tried it didin't work.
+				// Should probably handle this in a configure event, but last time I tried it didin't work.
 				case XCB_EXPOSE: {
 					xcb_get_geometry_cookie_t cookie = xcb_get_geometry(connection, window.id);
 					xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(connection, cookie, NULL);
@@ -48,52 +48,61 @@ int main() {
 					}
 
 					free(reply);
-					break;
-				}
-				case XCB_MOTION_NOTIFY: {
-					xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *) e;
-					printf("X: %d, Y: %d, Time: %d.\n", ev->event_x, ev->event_y, ev->time);
-					break;
-				}
+				} break;
+				case XCB_BUTTON_PRESS: {
+					xcb_button_press_event_t *ev = (xcb_button_press_event_t *) e;
+					switch(ev->detail) {
+						case 4: {
+							zoom(&game.screen, ev->event_x, ev->event_y, 1.01);
+						} break;
+						case 5: {
+							zoom(&game.screen, ev->event_x, ev->event_y, 0.99);
+						} break;
+					}
+				} break;
+				case XCB_BUTTON_RELEASE: {
+					/* xcb_button_press_event_t *ev = (xcb_button_press_event_t *) e; */
+					/* printf("X: %d, Y: %d, Time: %d, Detail: %d.\n", ev->event_x, ev->event_y, ev->time, ev->detail); */
+				} break;
 				case XCB_KEY_PRESS: {
 					xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
 					switch(ev->detail) {
+						// TODO(ym): smooth keyboard panning?
 						case 55:
 						case 111: {
-							game.screen.offset.y -= 20.0;
+							game.screen.offset.y -= 20.0 / game.screen.scale;
 						} break;
 						case 54:
 						case 116: {
-							game.screen.offset.y += 20.0;
+							game.screen.offset.y += 20.0 / game.screen.scale;
 						} break;
 						case 44:
 						case 113: {
-							game.screen.offset.x -= 20.0;
+							game.screen.offset.x -= 20.0 / game.screen.scale;
 						} break;
 						case 33:
 						case 114: {
-							game.screen.offset.x += 20.0;
+							game.screen.offset.x += 20.0 / game.screen.scale;
 						} break;
+						// Should zoom using the keyboard use mouse coords?
 						case 48: {
-							game.screen.scale *= 0.99;
+							zoom(&game.screen, window.width / 2, window.height / 2, 0.99);
 						} break;
 						case 35: {
-							game.screen.scale *= 1.01;
-						} break;
-						case 31: {
-							xcb_clear_area(connection, 0, window.id, 0, 0, window.width, window.height);
+							zoom(&game.screen, window.width / 2, window.height / 2, 1.01);
 						} break;
 						case 53: {
 							done = 0;
 						} break;
 					}
-					break;
-				}
+				} break;
 			}
 		}
 
-		draw(connection, back_buffer, white_gc, black_gc, &game, 5);
-		xcb_copy_area(connection, back_buffer.id, window.id, white_gc, 0, 0, 0, 0, window.width, window.height);
+		xcb_poly_fill_rectangle(connection, back_buffer.id, black_gc, 1, (xcb_rectangle_t[]) {{ 0, 0, back_buffer.width, back_buffer.height }});
+		draw(connection, back_buffer, white_gc, &game, 5);
+		// Why do I need to pass a gc here? doesn't seem to make a difference.
+		xcb_copy_area(connection, back_buffer.id, window.id, black_gc, 0, 0, 0, 0, window.width, window.height);
 		update(&(game.board));
 
 
@@ -101,12 +110,22 @@ int main() {
 		usleep(50000);
 	}
 
-	free_board(&(game.board));
-	// Do I need to free the gc after my connection with the server is closed?
+	free_board(&game.board);
+
+	// Do I need to free ~~gc~~ anything after my connection with the server is closed?
 	xcb_free_gc(connection, black_gc);
 	xcb_free_gc(connection, white_gc);
+	xcb_free_pixmap(connection, back_buffer.id);
 
 	xcb_disconnect(connection);
+}
+
+void zoom(Screen *screen, float current_mouse_x, float current_mouse_y, float scale) {
+	Vector previous_mouse = ScreenToWorld(screen, current_mouse_x, current_mouse_y);
+	screen->scale *= scale;
+	Vector new_mouse = ScreenToWorld(screen, current_mouse_x, current_mouse_y);
+	screen->offset.x += previous_mouse.x - new_mouse.x;
+	screen->offset.y += previous_mouse.y - new_mouse.y;
 }
 
 void update(Board *board) {
@@ -115,7 +134,7 @@ void update(Board *board) {
 		for(int j = 0; j < board->width; j++) {
 			int neighbours =
 				board->current_board[INDEX(i - 1, j - 1)] + board->current_board[INDEX(i - 1, j)] + board->current_board[INDEX(i - 1, j + 1)] +
-				board->current_board[INDEX(i, j - 1)] + board->current_board[INDEX(i, j + 1)] +
+				board->current_board[INDEX(i, j - 1)] 	  + board->current_board[INDEX(i, j + 1)] +
 				board->current_board[INDEX(i + 1, j - 1)] + board->current_board[INDEX(i + 1, j)] + board->current_board[INDEX(i + 1,  j + 1)];
 
 			if(board->current_board[INDEX(i, j)]) {
@@ -123,7 +142,7 @@ void update(Board *board) {
 			} else {
 				board->next_board[INDEX(i, j)] = neighbours == 3;
 			}
-			if(board->current_board[INDEX(i, j)]) {
+			if(board->next_board[INDEX(i, j)]) {
 				board->alive++;
 			}
 		}
@@ -135,31 +154,23 @@ void update(Board *board) {
 }
 
 
-void draw(xcb_connection_t *connection, Drawable window , xcb_gcontext_t foreground, xcb_gcontext_t background, Game *game, int size) {
+void draw(xcb_connection_t *connection, Drawable window , xcb_gcontext_t foreground, Game *game, int size) {
 	xcb_rectangle_t *rects = malloc(sizeof(xcb_rectangle_t) * game->board.alive);
-	/* printf("alive: %d\n", game->alive); */
-	/* Vector whatever3 = ScreenToWorld(screen, 0, 0); */
-	/* Vector whatever4 = ScreenToWorld(screen, window.width, window.height); */
-	/* printf("0x: %d, 0y: %d.\n", whatever3.x, whatever3.y); */
-	/* printf("max x: %d, max y: %d.\n", whatever4.x, whatever4.y); */
 
 	int k = 0;
 	for(int i = 0; i < game->board.length; i++) {
 		for(int j = 0; j < game->board.width; j++) {
 			if(game->board.current_board[i * game->board.width + j]) {
-				if(k < game->board.alive) {
-					Vector pos = WorldToScreen(&game->screen, i * size, j * size);
-					xcb_rectangle_t rect = { round(pos.x), round(pos.y), round(size * game->screen.scale), round(size * game->screen.scale) };
-					rects[k++] = rect;
+				Vector pos = WorldToScreen(&game->screen, j * size, i * size);
+				if((pos.x + size * game->screen.scale > 0 && pos.y + size * game->screen.scale > 0) &&
+						(pos.x - size * game->screen.scale < window.width && pos.y - size * game->screen.scale < window.height) ) {
+					rects[k++] = (xcb_rectangle_t) { pos.x, pos.y, size * game->screen.scale, size * game->screen.scale };
 				}
 			}
 		}
 	}
 
-	/* xcb_clear_area(connection, 0, window.id, 0, 0, window.width, window.height); */
-	xcb_poly_fill_rectangle(connection, window.id, background, 1, (xcb_rectangle_t[]) {{ 0, 0, window.width, window.height }});
-	xcb_poly_fill_rectangle(connection, window.id, foreground, game->board.alive, rects);
-
+	xcb_poly_fill_rectangle(connection, window.id, foreground, k, rects);
 	free(rects);
 }
 
@@ -169,20 +180,18 @@ void free_board(Board *board) {
 }
 
 // (This comment applies for all create/init functions)
-// Allocate on the stack and copy? or on the heap and return a pointer?
+// Allocate on the stack and copy? or on the heap and return a pointer? OR make the user pass a pointer and the set the value of it to whatever you want?
 Drawable create_window(xcb_connection_t *connection) {
-	Drawable window = {0, .id = xcb_generate_id(connection) };
+	Drawable window = { 400, 400, xcb_generate_id(connection) };
 	xcb_screen_t *screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data;
 
 	xcb_create_window(
 			connection, XCB_COPY_FROM_PARENT, window.id, screen->root,
 			0, 0,
-			400, 400,
+			1980, 1080,
 			0,
 			XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual,
-			XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK, (int[]) { screen->black_pixel,  XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_EXPOSURE });
-			/* XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK, (int[]) { screen->black_pixel, XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_MOTION | XCB_EVENT_MASK_EXPOSURE }); */
-			/* XCB_CW_EVENT_MASK, (int[]) {XCB_EVENT_MASK_EXPOSURE }); */
+			XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK, (int[]) { screen->black_pixel, XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_POINTER_MOTION });
 
 	xcb_map_window(connection, window.id);
 	return window;
@@ -192,8 +201,7 @@ Game create_game(int length, int width) {
     Board board = { malloc(length * width * sizeof(int)), malloc(length * width * sizeof(int)), length, width, 0 };
 	for(int i = 0; i < board.length; i++) {
 		for(int j = 0; j < board.width; j++) {
-			board.current_board[i  * board.width + j] = rand() % 2;
-			if(board.current_board[i * board.width + j]) {
+			if((board.current_board[i  * board.width + j] = rand() % 2)) {
 				board.alive++;
 			}
 		}
@@ -212,6 +220,6 @@ Vector WorldToScreen(Screen *screen, float x, float y) {
 	return vec;
 }
 
-int wrap(int x, int max) {
+inline int wrap(int x, int max) {
 	return (x + max) % max;
 }
