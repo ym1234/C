@@ -44,4 +44,7 @@ Vector ScreenToWorld(Screen *screen, float x, float y);
 Vector WorldToScreen(Screen *screen, float x, float y);
 
 void free_board(Board *board);
-inline int wrap(int x, int max);
+
+inline int wrap(int x, int max) {
+	return (x + max) % max;
+}

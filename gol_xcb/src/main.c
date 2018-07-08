@@ -219,7 +219,3 @@ Vector WorldToScreen(Screen *screen, float x, float y) {
 	Vector vec = { (x - screen->offset.x) * screen->scale, (y - screen->offset.y) * screen->scale };
 	return vec;
 }
-
-inline int wrap(int x, int max) {
-	return (x + max) % max;
-}
