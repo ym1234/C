@@ -24,8 +24,15 @@ int main() {
 	xcb_gcontext_t black_gc = xcb_generate_id(connection);
 	xcb_create_gc(connection, black_gc, window.id, XCB_GC_FOREGROUND, &(xcb_setup_roots_iterator(xcb_get_setup(connection)).data->black_pixel));
 
+
+	// TODO(ym): this is hacky af, and doesn't differentiate between holding and pressing
+	Vector mouse_pos = {0};
+	int mouse_1_pressed = 0;
+	xcb_timestamp_t mouse_time = 0;
+
 	int done = 1;
 	// TODO(ym): remove xcb_connection_has_error, commmunicate with the window manager (WM_DELETE_WINDOW) instead (you probably should read some of EHWM and ICWWM while you're at it).
+	int k = 0;
 	while(done && xcb_connection_has_error(connection) == 0) {
 		xcb_generic_event_t *e;
 		while((e = xcb_poll_for_event(connection))) {
@@ -49,9 +56,27 @@ int main() {
 
 					free(reply);
 				} break;
+				case XCB_MOTION_NOTIFY: {
+					xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *) e;
+					if(mouse_1_pressed) {
+						 // NOTE: Both of these seem to work correctly, not sure which one is more accurate.
+						 // (Probably the secocnd, but the first one is faster.
+						game.screen.offset.x += ((float)(mouse_pos.x - ev->event_x)) / game.screen.scale;
+						game.screen.offset.y += ((float)(mouse_pos.y - ev->event_y)) / game.screen.scale;
+						/* Vector world_first = ScreenToWorld(&game.screen, ev->event_x, ev->event_y); */
+						/* Vector world_second = ScreenToWorld(&game.screen, mouse_pos.x, mouse_pos.y); */
+						/* game.screen.offset.x += world_second.x - world_first.x; */
+						/* game.screen.offset.y += world_second.y - world_first.y; */
+					}
+					mouse_pos.x  = ev->event_x;
+					mouse_pos.y  = ev->event_y;
+				} break;
 				case XCB_BUTTON_PRESS: {
 					xcb_button_press_event_t *ev = (xcb_button_press_event_t *) e;
 					switch(ev->detail) {
+						case 1: {
+							mouse_1_pressed = 1;
+						} break;
 						case 4: {
 							zoom(&game.screen, ev->event_x, ev->event_y, 1.01);
 						} break;
@@ -61,8 +86,10 @@ int main() {
 					}
 				} break;
 				case XCB_BUTTON_RELEASE: {
-					/* xcb_button_press_event_t *ev = (xcb_button_press_event_t *) e; */
-					/* printf("X: %d, Y: %d, Time: %d, Detail: %d.\n", ev->event_x, ev->event_y, ev->time, ev->detail); */
+					xcb_button_release_event_t *ev = (xcb_button_release_event_t *) e;
+					if(ev->detail == 1) {
+						mouse_1_pressed = 0;
+					}
 				} break;
 				case XCB_KEY_PRESS: {
 					xcb_key_press_event_t *ev = (xcb_key_press_event_t *)e;
@@ -98,6 +125,7 @@ int main() {
 				} break;
 			}
 		}
+		k++;
 
 		xcb_poly_fill_rectangle(connection, back_buffer.id, black_gc, 1, (xcb_rectangle_t[]) {{ 0, 0, back_buffer.width, back_buffer.height }});
 		draw(connection, back_buffer, white_gc, &game, 5);
@@ -120,12 +148,13 @@ int main() {
 	xcb_disconnect(connection);
 }
 
-void zoom(Screen *screen, float current_mouse_x, float current_mouse_y, float scale) {
-	Vector previous_mouse = ScreenToWorld(screen, current_mouse_x, current_mouse_y);
+// Use a vector?
+void zoom(Screen *screen, float focus_x, float focus_y, float scale) {
+	Vector previous_focus = ScreenToWorld(screen, focus_x, focus_y);
 	screen->scale *= scale;
-	Vector new_mouse = ScreenToWorld(screen, current_mouse_x, current_mouse_y);
-	screen->offset.x += previous_mouse.x - new_mouse.x;
-	screen->offset.y += previous_mouse.y - new_mouse.y;
+	Vector new_focus = ScreenToWorld(screen, focus_x, focus_y);
+	screen->offset.x += previous_focus.x - new_focus.x;
+	screen->offset.y += previous_focus.y - new_focus.y;
 }
 
 void update(Board *board) {
@@ -210,6 +239,7 @@ Game create_game(int length, int width) {
 }
 
 
+// Use a vector?
 Vector ScreenToWorld(Screen *screen, float x, float y) {
 	Vector vec = { (x  / screen->scale) + screen->offset.x, (y / screen->scale) + screen->offset.y};
 	return vec;
