@@ -35,12 +35,13 @@ int main() {
 		xcb_generic_event_t *e;
 		while((e = xcb_poll_for_event(connection))) {
 			switch((e->response_type & ~0x80)) {
-				// Should probably handle this in a configure event, but last time I tried it didin't work.
-				case XCB_EXPOSE: {
-					xcb_get_geometry_cookie_t cookie = xcb_get_geometry(connection, window.id);
-					xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(connection, cookie, NULL);
+				case XCB_CONFIGURE_NOTIFY: {
+					xcb_configure_notify_event_t *ev = (xcb_configure_notify_event_t *) e;
 
-					if(window.height != reply->height || window.width != reply->width) {
+					if(window.height != ev->height || window.width != ev->width) {
+						xcb_get_geometry_cookie_t cookie = xcb_get_geometry(connection, window.id);
+						xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(connection, cookie, NULL);
+
 						window.height = reply->height;
 						window.width = reply->width;
 						xcb_free_pixmap(connection, back_buffer.id);
@@ -50,17 +51,16 @@ int main() {
 						back_buffer.height = reply->height;
 
 						xcb_create_pixmap(connection, xcb_setup_roots_iterator(xcb_get_setup(connection)).data->root_depth, back_buffer.id, window.id, back_buffer.width, back_buffer.height);
+						free(reply);
 					}
-
-					free(reply);
 				} break;
 				case XCB_MOTION_NOTIFY: {
 					xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *) e;
 					if(mouse_1_pressed) {
 						 // NOTE: Both of these seem to work correctly, not sure which one is more accurate.
 						 // (Probably the secocnd, but the first one is faster)
-						game.screen.offset.x += ((float)(mouse_pos.x - ev->event_x)) / game.screen.scale;
-						game.screen.offset.y += ((float)(mouse_pos.y - ev->event_y)) / game.screen.scale;
+						game.screen.offset.x += (mouse_pos.x - ev->event_x) / game.screen.scale;
+						game.screen.offset.y += (mouse_pos.y - ev->event_y) / game.screen.scale;
 						/* Vector world_first = ScreenToWorld(&game.screen, ev->event_x, ev->event_y); */
 						/* Vector world_second = ScreenToWorld(&game.screen, mouse_pos.x, mouse_pos.y); */
 						/* game.screen.offset.x += world_second.x - world_first.x; */
@@ -218,7 +218,8 @@ Drawable create_window(xcb_connection_t *connection) {
 			1980, 1080,
 			0,
 			XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual,
-			XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK, (int[]) { screen->black_pixel, XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_POINTER_MOTION });
+			XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK, (int[]) { screen->black_pixel, XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_POINTER_MOTION });
+
 
 	xcb_map_window(connection, window.id);
 	return window;
