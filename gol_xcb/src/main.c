@@ -28,11 +28,9 @@ int main() {
 	// TODO(ym): this is hacky af, and doesn't differentiate between holding and pressing
 	Vector mouse_pos = {0};
 	int mouse_1_pressed = 0;
-	xcb_timestamp_t mouse_time = 0;
 
 	int done = 1;
 	// TODO(ym): remove xcb_connection_has_error, commmunicate with the window manager (WM_DELETE_WINDOW) instead (you probably should read some of EHWM and ICWWM while you're at it).
-	int k = 0;
 	while(done && xcb_connection_has_error(connection) == 0) {
 		xcb_generic_event_t *e;
 		while((e = xcb_poll_for_event(connection))) {
@@ -60,7 +58,7 @@ int main() {
 					xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *) e;
 					if(mouse_1_pressed) {
 						 // NOTE: Both of these seem to work correctly, not sure which one is more accurate.
-						 // (Probably the secocnd, but the first one is faster.
+						 // (Probably the secocnd, but the first one is faster)
 						game.screen.offset.x += ((float)(mouse_pos.x - ev->event_x)) / game.screen.scale;
 						game.screen.offset.y += ((float)(mouse_pos.y - ev->event_y)) / game.screen.scale;
 						/* Vector world_first = ScreenToWorld(&game.screen, ev->event_x, ev->event_y); */
@@ -125,7 +123,6 @@ int main() {
 				} break;
 			}
 		}
-		k++;
 
 		xcb_poly_fill_rectangle(connection, back_buffer.id, black_gc, 1, (xcb_rectangle_t[]) {{ 0, 0, back_buffer.width, back_buffer.height }});
 		draw(connection, back_buffer, white_gc, &game, 5);
@@ -183,6 +180,7 @@ void update(Board *board) {
 }
 
 
+// TODO(ym): make the spacing between cells consistent, currently because of zoom floats are truncated so sizes & spaceing between the cells isn't consistent.
 void draw(xcb_connection_t *connection, Drawable window , xcb_gcontext_t foreground, Game *game, int size) {
 	xcb_rectangle_t *rects = malloc(sizeof(xcb_rectangle_t) * game->board.alive);
 
@@ -241,11 +239,9 @@ Game create_game(int length, int width) {
 
 // Use a vector?
 Vector ScreenToWorld(Screen *screen, float x, float y) {
-	Vector vec = { (x  / screen->scale) + screen->offset.x, (y / screen->scale) + screen->offset.y};
-	return vec;
+	return (Vector) { (x  / screen->scale) + screen->offset.x, (y / screen->scale) + screen->offset.y};
 }
 
 Vector WorldToScreen(Screen *screen, float x, float y) {
-	Vector vec = { (x - screen->offset.x) * screen->scale, (y - screen->offset.y) * screen->scale };
-	return vec;
+	return (Vector) { (x - screen->offset.x) * screen->scale, (y - screen->offset.y) * screen->scale };
 }

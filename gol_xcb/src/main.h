@@ -28,6 +28,7 @@ typedef struct {
 	int alive;
 } Board;
 
+// this struct feels clunky to use
 typedef struct {
 	Board board;
 	Screen screen;
