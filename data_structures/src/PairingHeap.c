@@ -10,10 +10,9 @@ Heap *heap_create(int (*comp)(void *, void *)) {
 	heap->comp = comp;
 }
 Heap *heap_create_element(void *element, int (*comp)(void *, void *)) {
-	Heap *heap = malloc(sizeof(Heap));
-	heap->children = arraylist_create_default();
+	Heap *heap = heap_create(comp);
 	heap->element = element;
-	heap->comp = comp;
+	return heap;
 }
 
 Heap *heap_shallow_copy(Heap *heap) {
@@ -54,7 +53,7 @@ Heap *merge_pairs(Arraylist *children, int start) {
 	if(size <= 0) {
 		return NULL;
 	} else if(size == 1) {
-		return arraylist_get(children, start + 0);
+		return arraylist_get(children, start);
 	} else {
 		return heap_merge_destructive(heap_merge_destructive(arraylist_get(children, start + 0), arraylist_get(children, start + 1)), merge_pairs(children, start + 2));
 	}

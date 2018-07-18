@@ -6,6 +6,7 @@
 #define INITIAL_SIZE 10
 
 // TODO(ym): error checking, etc
+// TODO(ym): function that take indicies should take signed ints not unsigned ints
 
 Arraylist *arraylist_create_default(void) {
 	return arraylist_create(0);
@@ -33,14 +34,8 @@ int arraylist_size(Arraylist *list) {
 }
 
 int arraylist_add(Arraylist *list, void *element) {
-	if(list->filled == list->size) {
-		void *new_block = realloc(list->elements, list->size * 2 * sizeof(void *));
-		if(new_block == NULL) {
-			/* printf("%s\n", "Couldn't reallocate!"); */
-			return -1;
-		}
-		list->elements = new_block;
-		list->size *= 2;
+	if(check_size(list)) {
+		arraylist_set_length(list, list->size * 2);
 	}
 	list->elements[(list->filled)++] = element;
 	return 0;
@@ -124,11 +119,17 @@ int arraylist_free(Arraylist *list) {
 }
 
 int arraylist_trim_to_size(Arraylist *list) {
-	void *new_block = realloc(list->elements, list->filled * sizeof(void *));
-	if(new_block == NULL) {
-		return -1;
+	arraylist_set_length(list, list->filled);
+}
+
+int arraylist_insert(Arraylist *list, int pos, void *element) {
+	if(check_size(list)) {
+		arraylist_set_length(list, list->size * 2);
 	}
-	list->size = list->filled;
-	list->elements = new_block;
-	return 0;
+	memmove(list + pos + 1, list + pos, list->filled - pos);
+	list->elements[pos] = element;
+}
+
+int check_size(Arraylist *list) {
+	return !(list->filled == list->size);
 }

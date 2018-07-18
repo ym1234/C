@@ -30,7 +30,7 @@ void print_tree(Heap *heap, Arraylist *indent, int is_tail) {
 }
 
 int comparator(void *first, void *second) {
-	if((*((int *)second)) < (*((int *)first))) {
+	if(* (int *) second < * (int *) first) {
 		return 1;
 	} else {
 		return -1;
@@ -87,11 +87,12 @@ void print_arraylist(Arraylist *list) {
 
 int test_heap(void) {
 	// TODO(ym): fix memleak(s)
-	/* int array[] = { 1, 3, 2, 10, 6, 24, 100, 39, 53, 87, 95, 11, 62, 5, 62, 40, 18, 11, 23, 15, 31, 14, 9, 46, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37 }; */
-	int array[] = { 1, 3, 2, 10, 6, 7, 8, 10, 11, 12 };
+	int array[] = { 1, 3, 2, 10, 6, 24, 100, 39, 53, 87, 95, 11, 62, 5, 62, 40, 18, 11, 23, 15, 31, 14, 9, 46, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37 };
+	/* int array[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 }; */
+	/* int array[] = { 1, 3, 2, 10, 6, 7, 8, 10, 11, 12 }; */
 	Heap *heap = heap_create_element(array, comparator);
 	/* for(int i = 1; i < 35; i++) { */
-	for(int i = 1; i < (sizeof(array) / sizeof(array[0])); i++) {
+	for(int i = 1; i < 100; i++) {
 		heap = heap_insert(heap, array + i);
 	}
 	print_tree(heap, arraylist_create_default(), 1);

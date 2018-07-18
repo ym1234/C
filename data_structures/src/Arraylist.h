@@ -26,4 +26,7 @@ int arraylist_size(Arraylist *);
 int arraylist_set(Arraylist *, unsigned int, void *);
 int arraylist_set_length(Arraylist *, int);
 
+int check_size(Arraylist *list);
+int arraylist_insert(Arraylist *list, int pos, void *element);
+
 #endif
