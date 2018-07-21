@@ -95,6 +95,7 @@ int arraylist_remove_range(Arraylist *list, unsigned int from_index, unsigned in
 
 	memmove(list->elements + from_index, list->elements + to_index, sizeof(void *) * abs(to_index - list->filled));
 	list->filled = from_index + abs(to_index - list->filled);
+	return 1;
 }
 
 int arraylist_set_length(Arraylist *list, int new_size) {
@@ -116,10 +117,12 @@ int arraylist_set_length(Arraylist *list, int new_size) {
 int arraylist_free(Arraylist *list) {
 	free(list->elements);
 	free(list);
+	return 1;
 }
 
 int arraylist_trim_to_size(Arraylist *list) {
 	arraylist_set_length(list, list->filled);
+	return 1;
 }
 
 int arraylist_insert(Arraylist *list, int pos, void *element) {
@@ -128,6 +131,7 @@ int arraylist_insert(Arraylist *list, int pos, void *element) {
 	}
 	memmove(list + pos + 1, list + pos, list->filled - pos);
 	list->elements[pos] = element;
+	return 1;
 }
 
 int check_size(Arraylist *list) {

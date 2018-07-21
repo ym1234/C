@@ -8,6 +8,7 @@ Heap *heap_create(int (*comp)(void *, void *)) {
 	heap->children = arraylist_create_default();
 	heap->element = NULL;
 	heap->comp = comp;
+	return heap;
 }
 Heap *heap_create_element(void *element, int (*comp)(void *, void *)) {
 	Heap *heap = heap_create(comp);
@@ -31,11 +32,11 @@ Heap *heap_merge(Heap *heap, Heap *second_heap) {
 
 Heap *heap_merge_destructive(Heap *heap, Heap *second_heap) {
 	if(heap == NULL || second_heap == NULL) {
-		return heap == NULL ? second_heap : heap;
+		return (heap == NULL) ? second_heap : heap;
 	}
 	int result = heap->comp(heap->element, second_heap->element);
-	Heap *head = result == 1 ? second_heap : heap;
-	arraylist_add(head->children, result == 1 ? heap : second_heap);
+	Heap *head = (result == 1) ? second_heap : heap;
+	arraylist_add(head->children, (result == 1) ? heap : second_heap);
 	return head;
 }
 
@@ -50,7 +51,7 @@ void heap_free(Heap *heap) {
 
 Heap *merge_pairs(Arraylist *children, int start) {
 	int size = arraylist_size(children) - start;
-	if(size <= 0) {
+	if(size < 0) {
 		return NULL;
 	} else if(size == 1) {
 		return arraylist_get(children, start);

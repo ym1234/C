@@ -15,7 +15,7 @@ int main() {
 	Drawable back_buffer = { window.height, window.width, xcb_generate_id(connection) };
 	xcb_create_pixmap(connection,xcb_setup_roots_iterator(xcb_get_setup(connection)).data->root_depth, back_buffer.id, window.id, back_buffer.width, back_buffer.height);
 
-	Game game = create_game(400, 300);
+	Game game = create_game(900, 900);
 
 	// I hate having to do this, why can't I just use the background color of a graphics context for clearing?
 	xcb_gcontext_t white_gc = xcb_generate_id(connection);
@@ -31,6 +31,7 @@ int main() {
 
 	int done = 1;
 	// TODO(ym): remove xcb_connection_has_error, commmunicate with the window manager (WM_DELETE_WINDOW) instead (you probably should read some of EHWM and ICWWM while you're at it).
+	Vector offset = { 0 };
 	while(done && xcb_connection_has_error(connection) == 0) {
 		xcb_generic_event_t *e;
 		while((e = xcb_poll_for_event(connection))) {
@@ -95,19 +96,23 @@ int main() {
 						// TODO(ym): smooth keyboard panning?
 						case 55:
 						case 111: {
-							game.screen.offset.y -= 20.0 / game.screen.scale;
+							/* game.screen.offset.y -= 20.0 / game.screen.scale; */
+							offset.y += -20.0 / game.screen.scale;
 						} break;
 						case 54:
 						case 116: {
-							game.screen.offset.y += 20.0 / game.screen.scale;
+							/* game.screen.offset.y += 20.0 / game.screen.scale; */
+							offset.y += 20.0 / game.screen.scale;
 						} break;
 						case 44:
 						case 113: {
-							game.screen.offset.x -= 20.0 / game.screen.scale;
+							/* game.screen.offset.x -= 20.0 / game.screen.scale; */
+							offset.x += -20.0 / game.screen.scale;
 						} break;
 						case 33:
 						case 114: {
-							game.screen.offset.x += 20.0 / game.screen.scale;
+							/* game.screen.offset.x += 20.0 / game.screen.scale; */
+							offset.x += 20.0 / game.screen.scale;
 						} break;
 						// Should zoom using the keyboard use mouse coords?
 						case 48: {
@@ -122,6 +127,7 @@ int main() {
 					}
 				} break;
 			}
+			free(e);
 		}
 
 		xcb_poly_fill_rectangle(connection, back_buffer.id, black_gc, 1, (xcb_rectangle_t[]) {{ 0, 0, back_buffer.width, back_buffer.height }});
@@ -129,7 +135,12 @@ int main() {
 		// Why do I need to pass a gc here? doesn't seem to make a difference.
 		xcb_copy_area(connection, back_buffer.id, window.id, black_gc, 0, 0, 0, 0, window.width, window.height);
 		update(&(game.board));
-
+		if(offset.x != 0 || offset.y != 0) {
+			game.screen.offset.y += offset.y;
+			game.screen.offset.x += offset.x;
+			offset.x -= offset.x * 0.33;
+			offset.y -= offset.y * 0.33;
+		}
 
 		xcb_flush(connection);
 		usleep(50000);
@@ -137,12 +148,14 @@ int main() {
 
 	free_board(&game.board);
 
-	// Do I need to free ~~gc~~ anything after my connection with the server is closed?
-	xcb_free_gc(connection, black_gc);
-	xcb_free_gc(connection, white_gc);
-	xcb_free_pixmap(connection, back_buffer.id);
+	if(!done) {
+		xcb_free_gc(connection, black_gc);
+		xcb_free_gc(connection, white_gc);
+		xcb_free_pixmap(connection, back_buffer.id);
+		xcb_destroy_window(connection, window.id);
 
-	xcb_disconnect(connection);
+		xcb_disconnect(connection);
+	}
 }
 
 // Use a vector?
@@ -218,7 +231,8 @@ Drawable create_window(xcb_connection_t *connection) {
 			1980, 1080,
 			0,
 			XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual,
-			XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK, (int[]) { screen->black_pixel, XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_POINTER_MOTION });
+			XCB_CW_EVENT_MASK,
+			(int[]) { XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_POINTER_MOTION });
 
 
 	xcb_map_window(connection, window.id);
